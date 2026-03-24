@@ -1,0 +1,25 @@
+[submodule "repos/multicluster-global-hub"]
+	path = repos/multicluster-global-hub
+	url = https://github.com/stolostron/multicluster-global-hub
+	branch = main
+
+[submodule "repos/glo-grafana"]
+	path = repos/glo-grafana
+	url = https://github.com/stolostron/glo-grafana
+	branch = release-1.8
+
+[submodule "repos/postgres_exporter"]
+	path = repos/postgres_exporter
+	url = https://github.com/stolostron/postgres_exporter
+	branch = release-2.17
+
+[submodule "repos/multicluster-global-hub-operator-bundle"]
+	path = repos/multicluster-global-hub-operator-bundle
+	url = https://github.com/stolostron/multicluster-global-hub-operator-bundle
+	branch = release-1.8
+
+[submodule "repos/multicluster-global-hub-operator-catalog"]
+	path = repos/multicluster-global-hub-operator-catalog
+	url = https://github.com/stolostron/multicluster-global-hub-operator-catalog
+	branch = release-1.8
+

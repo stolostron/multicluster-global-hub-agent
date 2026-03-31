@@ -33,7 +33,16 @@ jobs:
       - name: Update submodules
         id: update
         run: |
-          git submodule update --remote --recursive
+          # Update each submodule to the latest commit on its tracked branch
+          git submodule foreach --recursive '
+            BRANCH=$(git config -f $toplevel/.gitmodules submodule.$sm_path.branch)
+            if [ -n "$BRANCH" ]; then
+              echo "Updating $sm_path to latest $BRANCH"
+              git fetch origin $BRANCH
+              git checkout $BRANCH
+              git pull origin $BRANCH
+            fi
+          '
 
           # Check if there are changes
           if git diff --quiet; then

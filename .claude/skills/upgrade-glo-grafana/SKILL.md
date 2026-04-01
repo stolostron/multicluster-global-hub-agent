@@ -31,27 +31,27 @@ cd repos/glo-grafana
 
 Ask the user for the following information:
 
-1. **Upstream branch**: The branch from `stolostron/grafana` to sync from (e.g., `release-2.17`)
-2. **Base commit**: The FIRST Global Hub specific commit hash - this commit AND all commits after it will be cherry-picked (e.g., `8b094630b98f95eb92a85098a19b769e34aa8a77`)
-3. **Target branch**: The branch in glo-grafana to create PR against (e.g., `release-1.8`)
+1. **Source branch**: The branch from `stolostron/grafana` to sync from (e.g., `release-2.17`)
+2. **Target branch**: The branch in glo-grafana to create PR against (e.g., `release-1.8`)
+3. **Keep commit**: The FIRST Global Hub specific commit to keep - this commit AND all commits after it will be cherry-picked (e.g., `8b094630b9`)
 
 Store these values as:
-- `UPSTREAM_BRANCH` - e.g., `release-2.17`
-- `BASE_COMMIT` - e.g., `8b094630b98f95eb92a85098a19b769e34aa8a77`
+- `SOURCE_BRANCH` - e.g., `release-2.17`
 - `TARGET_BRANCH` - e.g., `release-1.8`
+- `KEEP_COMMIT` - e.g., `8b094630b98f95eb92a85098a19b769e34aa8a77`
 
 ### Step 3: Identify Commits to Cherry-pick
 
-List all commits starting from and including the base commit:
+List all commits starting from and including the keep commit:
 
 ```bash
-# List commits from base commit to HEAD (inclusive)
-git log --oneline {BASE_COMMIT}^..HEAD
+# List commits from keep commit to HEAD (inclusive)
+git log --oneline {KEEP_COMMIT}^..HEAD
 ```
 
-**IMPORTANT**: The base commit itself must be included in the cherry-pick list. The commits to cherry-pick are:
-- `{BASE_COMMIT}` (the base commit - must be included!)
-- All commits after `{BASE_COMMIT}` up to HEAD
+**IMPORTANT**: The keep commit itself must be included in the cherry-pick list. The commits to cherry-pick are:
+- `{KEEP_COMMIT}` (the first commit to keep - must be included!)
+- All commits after `{KEEP_COMMIT}` up to HEAD
 
 Store the list of commit hashes in order (oldest first) as `COMMITS_TO_CHERRY_PICK`.
 
@@ -63,7 +63,7 @@ Add the stolostron/grafana repository as upstream remote and fetch the target br
 
 ```bash
 git remote add upstream https://github.com/stolostron/grafana.git 2>/dev/null || echo "Remote exists"
-git fetch upstream {UPSTREAM_BRANCH}
+git fetch upstream {SOURCE_BRANCH}
 ```
 
 ### Step 5: Create New Branch from Upstream
@@ -71,7 +71,7 @@ git fetch upstream {UPSTREAM_BRANCH}
 Create a new branch based on the upstream code:
 
 ```bash
-git checkout -b upgrade-to-grafana-{UPSTREAM_BRANCH} upstream/{UPSTREAM_BRANCH}
+git checkout -b upgrade-to-grafana-{SOURCE_BRANCH} upstream/{SOURCE_BRANCH}
 ```
 
 Store the new branch name as `NEW_BRANCH` (e.g., `upgrade-to-grafana-2.17`).
@@ -81,7 +81,7 @@ Store the new branch name as `NEW_BRANCH` (e.g., `upgrade-to-grafana-2.17`).
 Cherry-pick each commit in order from oldest to newest, **starting with the base commit**:
 
 ```bash
-git cherry-pick {BASE_COMMIT}
+git cherry-pick {KEEP_COMMIT}
 git cherry-pick {NEXT_COMMIT}
 # ... continue for all commits
 ```
@@ -131,13 +131,13 @@ After all cherry-picks are complete, squash all Global Hub commits into a single
 
 ```bash
 # Reset to upstream base, keeping all changes staged
-git reset --soft upstream/{UPSTREAM_BRANCH}
+git reset --soft upstream/{SOURCE_BRANCH}
 
 # Create single commit
 git commit -s -m "Re-apply Global Hub specific commits on top
 
 This commit applies all Global Hub specific changes on top of
-stolostron/grafana {UPSTREAM_BRANCH} (Grafana {GRAFANA_VERSION}):
+stolostron/grafana {SOURCE_BRANCH} (Grafana {GRAFANA_VERSION}):
 
 - Apply Global Hub Konflux config and CVE fixes
 - Remove failing upstream Grafana workflows
@@ -188,15 +188,15 @@ git push -u myfork {NEW_BRANCH}
 Create a PR to the target branch:
 
 ```bash
-gh pr create --repo stolostron/glo-grafana --base {TARGET_BRANCH} --head {USERNAME}:{NEW_BRANCH} --title "Upgrade glo-grafana to Grafana {GRAFANA_VERSION} (stolostron/grafana {UPSTREAM_BRANCH})" --body "$(cat <<'EOF'
+gh pr create --repo stolostron/glo-grafana --base {TARGET_BRANCH} --head {USERNAME}:{NEW_BRANCH} --title "Upgrade glo-grafana to Grafana {GRAFANA_VERSION} (stolostron/grafana {SOURCE_BRANCH})" --body "$(cat <<'EOF'
 ## Summary
-- Sync latest code from https://github.com/stolostron/grafana {UPSTREAM_BRANCH} branch (Grafana {GRAFANA_VERSION})
+- Sync latest code from https://github.com/stolostron/grafana {SOURCE_BRANCH} branch (Grafana {GRAFANA_VERSION})
 - Re-apply Global Hub specific commits on top of the synced code
 
 ## Changes
 This upgrade brings the latest Grafana improvements including:
 - All upstream Grafana improvements and bug fixes
-- CVE fixes included in stolostron/grafana {UPSTREAM_BRANCH}
+- CVE fixes included in stolostron/grafana {SOURCE_BRANCH}
 - Retains Global Hub specific configurations:
   - Konflux pipelines for release-1.8
   - Containerfile.konflux
@@ -221,7 +221,7 @@ Display completion summary:
 ✓ glo-grafana Upgrade Workflow Completed!
 
 Upstream Sync:
-- Source: stolostron/grafana {UPSTREAM_BRANCH}
+- Source: stolostron/grafana {SOURCE_BRANCH}
 - Grafana Version: {GRAFANA_VERSION}
 
 Final Commit: {COMMIT_HASH} - "Re-apply Global Hub specific commits on top"
@@ -257,8 +257,8 @@ Then analyze the commit manually and consider creating a new commit with the sam
 
 If the new branch already exists:
 ```bash
-git branch -D upgrade-to-grafana-{UPSTREAM_BRANCH}
-git checkout -b upgrade-to-grafana-{UPSTREAM_BRANCH} upstream/{UPSTREAM_BRANCH}
+git branch -D upgrade-to-grafana-{SOURCE_BRANCH}
+git checkout -b upgrade-to-grafana-{SOURCE_BRANCH} upstream/{SOURCE_BRANCH}
 ```
 
 ### Push Permission Denied
@@ -302,16 +302,23 @@ Before starting this workflow, ensure:
 ```
 User: /upgrade-glo-grafana
 Claude: I'll help you upgrade glo-grafana. Please provide:
-1. Upstream branch from stolostron/grafana (e.g., release-2.17)
-2. Base commit hash - the FIRST Global Hub specific commit (this commit will be included)
-3. Target branch for the PR (e.g., release-1.8)
+1. Source branch from stolostron/grafana to sync from (e.g., release-2.17)
+2. Target branch in glo-grafana for the PR (e.g., release-1.8)
+3. Keep commit - the FIRST commit to keep (this commit and all after it will be cherry-picked)
 ```
 
 ### With All Parameters
 
 ```
-User: Upgrade glo-grafana from stolostron/grafana release-2.17, base commit is 8b094630b9, PR to release-1.8
+User: /upgrade-glo-grafana source: release-2.17, target: release-1.8, keep: 8b094630b9
 Claude: I'll upgrade glo-grafana by syncing release-2.17 and cherry-picking commits starting from 8b094630b9...
+```
+
+### Shorthand
+
+```
+User: /upgrade-glo-grafana release-2.17 -> release-1.8, keep 8b094630b9
+Claude: I'll upgrade glo-grafana...
 ```
 
 ## Version Mapping
@@ -326,7 +333,7 @@ Common version mappings between branches:
 
 ## Key Files in Global Hub Commits
 
-The base commit typically includes these Global Hub specific files:
+The keep commit (first Global Hub specific commit) typically includes these files:
 
 1. **Konflux Configuration**:
    - `.tekton/glo-grafana-globalhub-*-pull-request.yaml`
@@ -347,7 +354,7 @@ The base commit typically includes these Global Hub specific files:
 
 ## Best Practices
 
-1. **Include base commit**: The base commit contains critical Global Hub config - don't skip it!
+1. **Include keep commit**: The keep commit contains critical Global Hub config - don't skip it!
 2. **Squash to single commit**: Final PR should have exactly one commit: "Re-apply Global Hub specific commits on top"
 3. **Preserve CVE fixes**: Always keep security patches (go.mod replace directives, package.json upgrades)
 4. **Keep both tekton files**: ACM and Global Hub use different Konflux pipelines - keep both
